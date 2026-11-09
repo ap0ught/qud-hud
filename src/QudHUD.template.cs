@@ -1118,7 +1118,11 @@ namespace QudHUD
                     string safe = zoneId;
                     foreach (char c in Path.GetInvalidFileNameChars()) safe = safe.Replace(c, '_');
                     string path = Path.Combine(dir, safe + ".png");
-                    if (File.Exists(path)) tilePath = path;
+                    if (File.Exists(path))
+                    {
+                        tilePath = Path.Combine(Hud.Dir, "atlas.png");
+                        File.Copy(path, tilePath, true);
+                    }
                 }
             }
             catch { tilePath = null; }
