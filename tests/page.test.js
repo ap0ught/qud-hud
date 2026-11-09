@@ -502,12 +502,12 @@ async function load(opts={}){
     delete DATA.nearby;
   }
 
-  // --- the three windows the game docks together share a column
+  // --- the atlas, minimap, nearby objects and messages share a column
   {
     writeData(0,1);
     ({dom,errs,d}=await load());
     const c3=[].slice.call(d.querySelectorAll('[data-zone=c3] > .panel')).map(n=>n.dataset.panel).join();
-    check('layout: minimap, nearby and messages share the third column',c3==='map,near,msgs',c3);
+    check('layout: atlas, minimap, nearby and messages share the third column',c3==='map,atlas,near,msgs',c3);
     dom.window.close();
   }
 
@@ -826,7 +826,7 @@ async function load(opts={}){
     Object.defineProperty(w2,'innerWidth',{value:1000,configurable:true});w2.dispatchEvent(new w2.Event('resize'));
     const t2=[].slice.call(d.getElementById('cols').children);
     const shown2=[0,1,2].map(t=>[].slice.call(t2[t].children).filter(z=>!z.classList.contains('vacant')).map(z=>z.dataset.zone).join(',')).join(' / ');
-    check('columns: an emptied column gives its track to the next',shown2==='c1 / c3 / ',shown2);
+    check('columns: an emptied column gives its track to the next',shown2==='c1 / c2,c3 / ',shown2);
     dom.window.close();
   }
 
