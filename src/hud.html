@@ -659,12 +659,9 @@ function renderAttrs(d){
 }
 
 function renderAtlas(d){
-  var a=d.automap||{},p=a.tilePath;
-  if(!p){$('atlas').innerHTML=empty('No atlas tile for this zone.');return;}
-  var src='file:///'+String(p).replace(/\\/g,'/').replace(/^\/+/,'').split('/').map(function(s){
-    return encodeURIComponent(s).replace(/%3A/gi,':');
-  }).join('/');
-  $('atlas').innerHTML='<div class="item"><img src="'+esc(src)+'" style="max-width:100%;height:auto;border:1px solid #333" alt="atlas tile"><div style="color:#888;font-size:11px;margin-top:4px">'+esc(a.zoneId||'')+'</div></div>';
+  var a=d.automap||{},t=a.tile;
+  if(!t){$('atlas').innerHTML=empty('No atlas tile for this zone.');return;}
+  $('atlas').innerHTML='<div class="item"><img src="'+esc(String(t))+'" style="max-width:100%;height:auto;border:1px solid #333" alt="atlas tile"><div style="color:#888;font-size:11px;margin-top:4px">'+esc(a.zoneId||'')+'</div></div>';
 }
 
 function renderGratefulPets(d){

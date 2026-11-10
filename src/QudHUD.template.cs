@@ -1101,10 +1101,13 @@ namespace QudHUD
             d["companions"] = list;
         }
 
+        static string atlasSrc, atlasRev, atlasFile;
+
         static void BuildAtlas(GameObject p, Dictionary<string, object> d)
         {
             var entry = new Dictionary<string, object>(R.Keys);
-            string tilePath = null;
+            string tile = null;
+            string tileRev = null;
             string zoneId = null;
             try
             {
@@ -1120,13 +1123,33 @@ namespace QudHUD
                     string path = Path.Combine(dir, safe + ".png");
                     if (File.Exists(path))
                     {
-                        tilePath = Path.Combine(Hud.Dir, "atlas.png");
-                        File.Copy(path, tilePath, true);
+                        string rev = File.GetLastWriteTimeUtc(path).Ticks.ToString() + "-" + new FileInfo(path).Length.ToString();
+                        if (atlasSrc == path && atlasRev == rev && !string.IsNullOrEmpty(atlasFile) && File.Exists(Path.Combine(Hud.Dir, atlasFile)))
+                        {
+                            tile = atlasFile;
+                            tileRev = atlasRev;
+                        }
+                        else
+                        {
+                            string file = "atlas-" + rev + ".png";
+                            string dest = Path.Combine(Hud.Dir, file);
+                            File.Copy(path, dest, true);
+                            if (!string.IsNullOrEmpty(atlasFile) && atlasFile != file)
+                            {
+                                try { File.Delete(Path.Combine(Hud.Dir, atlasFile)); } catch { }
+                            }
+                            atlasSrc = path;
+                            atlasRev = rev;
+                            atlasFile = file;
+                            tile = file;
+                            tileRev = rev;
+                        }
                     }
                 }
             }
-            catch { tilePath = null; }
-            entry["tilePath"] = tilePath;
+            catch { tile = null; tileRev = null; }
+            entry["tile"] = tile;
+            entry["tileRev"] = tileRev;
             entry["zoneId"] = zoneId;
             d["automap"] = entry;
         }

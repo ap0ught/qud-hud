@@ -96,9 +96,9 @@ async function load(opts={}){
   check('abilities rendered',/Sprint/.test(d.getElementById('abilities').textContent));
   check('gear rendered',/laser rifle/.test(d.getElementById('gear').textContent));
   dom.window.__qudhud.render({version:VER,seq:2,stamp:'12:00:00',
-    data:{...DATA,automap:{tilePath:'/home/player#1/100%/zone "A".png',zoneId:'test'}}});
-  check('Atlas URL encodes special path characters',
-        d.querySelector('[data-panel=atlas] img').getAttribute('src')==='file:///home/player%231/100%25/zone%20%22A%22.png',
+    data:{...DATA,automap:{tile:'atlas-1-2.png',zoneId:'test'}}});
+  check('Atlas uses sibling-relative tile URL',
+        d.querySelector('[data-panel=atlas] img').getAttribute('src')==='atlas-1-2.png',
         d.querySelector('[data-panel=atlas] img').getAttribute('src'));
   check('local water alert fired',/Fresh water low: 5 drams/.test(d.getElementById('warnBody').textContent));
   check('title shows critical prefix',/^!! /.test(d.title),JSON.stringify(d.title));
