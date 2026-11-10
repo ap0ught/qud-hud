@@ -682,7 +682,7 @@ namespace QudHUD
                         else if (R.Bool(R.Call(o, "HasPart", "Pettable"))) isPet = true;
                     }
                     catch { isPet = false; }
-                    if (!isPet) continue;
+                    if (!isPet || IsDead(o)) continue;
 
                     var entry = new Dictionary<string, object>(R.Keys);
                     entry["name"] = Name(o);
@@ -1134,10 +1134,16 @@ namespace QudHUD
                             string file = "atlas-" + rev + ".png";
                             string dest = Path.Combine(Hud.Dir, file);
                             File.Copy(path, dest, true);
-                            if (!string.IsNullOrEmpty(atlasFile) && atlasFile != file)
+                            try
                             {
-                                try { File.Delete(Path.Combine(Hud.Dir, atlasFile)); } catch { }
+                                foreach (string old in Directory.GetFiles(Hud.Dir, "atlas-*.png"))
+                                {
+                                    if (string.Equals(Path.GetFileName(old), file, StringComparison.OrdinalIgnoreCase)) continue;
+                                    if ((DateTime.UtcNow - File.GetLastWriteTimeUtc(old)).TotalMinutes < 5) continue;
+                                    try { File.Delete(old); } catch { }
+                                }
                             }
+                            catch { }
                             atlasSrc = path;
                             atlasRev = rev;
                             atlasFile = file;
