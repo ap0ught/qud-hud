@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.13
+- Added: an Atlas panel that displays the current zone's discovered automap tile when one is available.
+- Added: a Grateful Pets panel showing tracked pets, digestion progress, held pellets, corpse milestones and the whole-body taste effect.
+- Added: a link in the HUD options to launch Caves of Qud through Steam.
+
 ## 1.0.12
 - Fixed: the page could stay dimmed and say "No updates for 5h" (or 23h) while the game was updating it, when the browser and the game disagreed about the timezone. Firefox and LibreWolf with resistFingerprinting report UTC, and games run through Proton can get the timezone wrong. The age of the data now comes from a UTC time in the data file, so timezones no longer matter.
 - Changed: stale readings fade less, so they stay readable while the link light shows they are old.

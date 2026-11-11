@@ -432,6 +432,7 @@ namespace QudHUD
             Section("zone name", () => BuildZone(p, d));
             Section("clock", () => BuildClock(d));
             Section("attributes", () => BuildAttributes(p, d));
+            Section("gratefulpets", () => BuildGratefulPets(p, d));
             Section("combat", () => BuildCombat(p, d));
             Section("survival", () => BuildSurvival(p, d, alerts));
             Section("effects", () => BuildEffects(p, d, alerts));
@@ -439,6 +440,7 @@ namespace QudHUD
             Section("gear", () => BuildGear(p, d, alerts));
             Section("hostiles", () => BuildHostiles(p, d, alerts));
             Section("companions", () => BuildCompanions(p, d));
+            Section("automap", () => BuildAtlas(p, d));
             Section("messages", () => d["messages"] = MessageLog.Recent(12));
             Section("surroundings", () => Surroundings.Build(p, d));
         }
@@ -660,6 +662,54 @@ namespace QudHUD
                 });
             }
             d["attributes"] = list;
+        }
+
+        static void BuildGratefulPets(GameObject p, Dictionary<string, object> d)
+        {
+            var list = new List<object>();
+            List<object> objs = null;
+            try { objs = Creatures(p); } catch { objs = null; }
+            if (objs != null)
+            {
+                foreach (object o in objs)
+                {
+                    if (o == null) continue;
+                    bool isPet = false;
+                    try
+                    {
+                        if (R.Bool(R.Call(o, "HasTag", "Pet"))) isPet = true;
+                        else if (R.Bool(R.Call(o, "HasTag", "StartingPet"))) isPet = true;
+                        else if (R.Bool(R.Call(o, "HasPart", "Pettable"))) isPet = true;
+                    }
+                    catch { isPet = false; }
+                    if (!isPet || IsDead(o)) continue;
+
+                    var entry = new Dictionary<string, object>(R.Keys);
+                    entry["name"] = Name(o);
+                    object dig = null;
+                    try { dig = R.Call(o, "GetPart", "GratefulPetsDigestion"); } catch { dig = null; }
+                    if (dig != null)
+                    {
+                        entry["corpseCount"] = R.Int(R.Get(dig, "CorpseCount"), 0);
+                        entry["held"] = R.Int(R.Get(dig, "HeldForDelivery"), 0);
+                        entry["remaining"] = R.Int(R.Get(dig, "RemainingToProduce"), 0);
+                        entry["totalCorpses"] = R.Int(R.Get(dig, "TotalCorpsesConsumed"), 0);
+                    }
+                    else
+                    {
+                        entry["corpseCount"] = 0;
+                        entry["held"] = 0;
+                        entry["remaining"] = 0;
+                        entry["totalCorpses"] = 0;
+                    }
+                    bool taste = false;
+                    try { taste = R.Bool(R.Call(o, "HasEffect", "XRL.World.Effects.GratefulPetsTasteForWholeBodies")); } catch { taste = false; }
+                    entry["taste"] = taste;
+                    list.Add(entry);
+                }
+            }
+            if (list.Count == 0) d["gratefulpets"] = null;
+            else d["gratefulpets"] = list;
         }
 
         static void BuildCombat(GameObject p, Dictionary<string, object> d)
@@ -1049,6 +1099,65 @@ namespace QudHUD
             foreach (var f in found) list.Add(f);
             SortBy(list, e => (bool)e["seen"] ? (int)e["distance"] : int.MaxValue, e => (string)e["name"]);
             d["companions"] = list;
+        }
+
+        static string atlasSrc, atlasRev, atlasFile;
+
+        static void BuildAtlas(GameObject p, Dictionary<string, object> d)
+        {
+            var entry = new Dictionary<string, object>(R.Keys);
+            string tile = null;
+            string tileRev = null;
+            string zoneId = null;
+            try
+            {
+                object zone = R.Call(p, "GetCurrentZone");
+                if (zone != null) zoneId = R.Str(R.Get(zone, "ZoneID"));
+                object game = R.SCall("XRL.The", "get_Game");
+                object dirObj = (game != null) ? R.Call(game, "GetCacheDirectory", "Automap" + Path.DirectorySeparatorChar + "tiles") : null;
+                string dir = dirObj != null ? R.Str(dirObj) : null;
+                if (!string.IsNullOrEmpty(dir) && !string.IsNullOrEmpty(zoneId))
+                {
+                    string safe = zoneId;
+                    foreach (char c in Path.GetInvalidFileNameChars()) safe = safe.Replace(c, '_');
+                    string path = Path.Combine(dir, safe + ".png");
+                    if (File.Exists(path))
+                    {
+                        string rev = File.GetLastWriteTimeUtc(path).Ticks.ToString() + "-" + new FileInfo(path).Length.ToString();
+                        if (atlasSrc == path && atlasRev == rev && !string.IsNullOrEmpty(atlasFile) && File.Exists(Path.Combine(Hud.Dir, atlasFile)))
+                        {
+                            tile = atlasFile;
+                            tileRev = atlasRev;
+                        }
+                        else
+                        {
+                            string file = "atlas-" + rev + ".png";
+                            string dest = Path.Combine(Hud.Dir, file);
+                            File.Copy(path, dest, true);
+                            try
+                            {
+                                foreach (string old in Directory.GetFiles(Hud.Dir, "atlas-*.png"))
+                                {
+                                    if (string.Equals(Path.GetFileName(old), file, StringComparison.OrdinalIgnoreCase)) continue;
+                                    if ((DateTime.UtcNow - File.GetLastWriteTimeUtc(old)).TotalMinutes < 5) continue;
+                                    try { File.Delete(old); } catch { }
+                                }
+                            }
+                            catch { }
+                            atlasSrc = path;
+                            atlasRev = rev;
+                            atlasFile = file;
+                            tile = file;
+                            tileRev = rev;
+                        }
+                    }
+                }
+            }
+            catch { tile = null; tileRev = null; }
+            entry["tile"] = tile;
+            entry["tileRev"] = tileRev;
+            entry["zoneId"] = zoneId;
+            d["automap"] = entry;
         }
 
         // What the hostile list is sorted by, kept beside the entry rather than in it. Hit points order

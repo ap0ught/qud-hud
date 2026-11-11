@@ -95,6 +95,11 @@ async function load(opts={}){
   check('effects rendered',/Bleeding/.test(d.getElementById('effects').textContent));
   check('abilities rendered',/Sprint/.test(d.getElementById('abilities').textContent));
   check('gear rendered',/laser rifle/.test(d.getElementById('gear').textContent));
+  dom.window.__qudhud.render({version:VER,seq:2,stamp:'12:00:00',
+    data:{...DATA,automap:{tile:'atlas-1-2.png',zoneId:'test'}}});
+  check('Atlas uses sibling-relative tile URL',
+        d.querySelector('[data-panel=atlas] img').getAttribute('src')==='atlas-1-2.png',
+        d.querySelector('[data-panel=atlas] img').getAttribute('src'));
   check('local water alert fired',/Fresh water low: 5 drams/.test(d.getElementById('warnBody').textContent));
   check('title shows critical prefix',/^!! /.test(d.title),JSON.stringify(d.title));
   check('grips added to panels',d.querySelectorAll('.grip').length>0,d.querySelectorAll('.grip').length+' grips');
@@ -502,12 +507,12 @@ async function load(opts={}){
     delete DATA.nearby;
   }
 
-  // --- the three windows the game docks together share a column
+  // --- the atlas, minimap, nearby objects and messages share a column
   {
     writeData(0,1);
     ({dom,errs,d}=await load());
     const c3=[].slice.call(d.querySelectorAll('[data-zone=c3] > .panel')).map(n=>n.dataset.panel).join();
-    check('layout: minimap, nearby and messages share the third column',c3==='map,near,msgs',c3);
+    check('layout: atlas, minimap, nearby and messages share the third column',c3==='map,atlas,near,msgs',c3);
     dom.window.close();
   }
 
@@ -753,6 +758,32 @@ async function load(opts={}){
   check('hidden panels load without errors',errs.length===0,errs.join(' | '));
   dom.window.close();
 
+  // Pet availability participates in column occupancy without changing the saved hidden preference.
+  {
+    const hidden=['survival','gear','attrs'];
+    ({dom,errs,d}=await load({store:{'qudhud.hidden':JSON.stringify(hidden)}}));
+    const w=dom.window,panel=d.querySelector('[data-panel=gratefulpets]');
+    check('no tracked pets hides the panel without marking it user-hidden',
+          panel.classList.contains('unavailable')&&!panel.classList.contains('off'));
+    check('no tracked pets collapses an otherwise empty column',
+          d.querySelector('[data-zone=c2]').classList.contains('vacant'));
+    w.__qudhud.render({version:VER,seq:2,stamp:'12:00:00',data:{...DATA,
+      gratefulpets:[{name:'pet',corpseCount:1,held:0,remaining:0,totalCorpses:1}]}});
+    check('pet availability restores its column',
+          !panel.classList.contains('unavailable')&&!d.querySelector('[data-zone=c2]').classList.contains('vacant'));
+    w.__qudhud.render({version:VER,seq:3,stamp:'12:00:00',data:{...DATA,gratefulpets:null}});
+    check('pet loss collapses the column again',
+          panel.classList.contains('unavailable')&&d.querySelector('[data-zone=c2]').classList.contains('vacant'));
+    dom.window.close();
+
+    ({dom,errs,d}=await load({store:{'qudhud.hidden':JSON.stringify(['gratefulpets'])}}));
+    const hiddenPet=d.querySelector('[data-panel=gratefulpets]');
+    dom.window.__qudhud.render({version:VER,seq:2,stamp:'12:00:00',data:{...DATA,gratefulpets:[]}});
+    check('pet availability does not override the saved hidden preference',
+          hiddenPet.classList.contains('off')&&d.querySelector('[data-panel-tog=gratefulpets]').getAttribute('aria-checked')==='false');
+    dom.window.close();
+  }
+
   // stale data must dim the readings
   writeData(3*3600,1);
   ({dom,errs,d}=await load());
@@ -823,10 +854,11 @@ async function load(opts={}){
     // a column with every panel hidden takes no track, so the others use the room
     ({dom,errs,d}=await load({store:{'qudhud.hidden':JSON.stringify(['survival','gear','attrs'])}}));
     const w2=dom.window;
+    w2.__qudhud.render({version:VER,seq:2,stamp:'12:00:00',data:{...DATA,gratefulpets:[]}});
     Object.defineProperty(w2,'innerWidth',{value:1000,configurable:true});w2.dispatchEvent(new w2.Event('resize'));
     const t2=[].slice.call(d.getElementById('cols').children);
     const shown2=[0,1,2].map(t=>[].slice.call(t2[t].children).filter(z=>!z.classList.contains('vacant')).map(z=>z.dataset.zone).join(',')).join(' / ');
-    check('columns: an emptied column gives its track to the next',shown2==='c1 / c3 / ',shown2);
+    check('columns: an emptied column gives its track to the next',shown2==='c1 / c2,c3 / ',shown2);
     dom.window.close();
   }
 

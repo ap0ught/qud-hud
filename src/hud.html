@@ -165,6 +165,7 @@ body.waiting #wait{display:block}
 .grip:hover,.grip:focus-visible,.hide:hover,.hide:focus-visible{color:var(--gold)}
 .grip:focus-visible,.hide:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
 .panel.off{display:none}
+.panel.unavailable{display:none}
 .zone{min-width:0}
 body.dragging,body.dragging *{cursor:grabbing!important;user-select:none}
 body.dragging .zone{min-height:4rem;outline:1px dashed var(--frame);outline-offset:.3rem}
@@ -222,9 +223,11 @@ body.dragging #marker{display:block}
       <section class="panel" data-panel="survival"><h2>Survival</h2><div id="survival"></div></section>
       <section class="panel" data-panel="gear"><h2>Gear</h2><div id="gear"></div></section>
       <section class="panel" data-panel="attrs"><h2>Attributes</h2><div id="attrs"></div></section>
+      <section class="panel" data-panel="gratefulpets"><h2>Grateful Pets</h2><div id="gratefulpets"></div></section>
     </div></div>
     <div class="track"><div class="col zone" data-zone="c3">
       <section class="panel" data-panel="map"><h2>Minimap</h2><div id="map"></div></section>
+      <section class="panel" data-panel="atlas"><h2>Atlas</h2><div id="atlas"></div></section>
       <section class="panel" data-panel="near"><h2>Nearby objects</h2><div id="near"></div></section>
       <section class="panel" data-panel="msgs"><h2>Messages</h2><div id="msgs"></div></section>
     </div></div>
@@ -244,6 +247,8 @@ body.dragging #marker{display:block}
     <label>Nearby objects: only takeable items</label></div>
   <div class="phead">Panels</div>
   <div id="panelOpts"></div>
+  <div class="phead">Launch</div>
+  <div class="opt"><a href="steam://rungameid/333640" style="color:#0096ff;text-decoration:none">Open Caves of Qud (Steam)</a></div>
   <div class="ver">Qud HUD v<span id="ver"></span></div>
 </section>
 <div id="foot"><span id="link">Not linked</span><span id="broke" hidden></span><span class="right"><span>Drag ≡ to move a panel, × hides it, R resets. + / - to resize, 0 resets size.</span><button type="button" id="optBtn" aria-expanded="false" aria-controls="opts">☼ Options</button></span></div>
@@ -653,6 +658,36 @@ function renderAttrs(d){
   }).join('')+'</div>';
 }
 
+function renderAtlas(d){
+  var a=d.automap||{},t=a.tile;
+  if(!t){$('atlas').innerHTML=empty('No atlas tile for this zone.');return;}
+  var href=esc(String(t));
+  $('atlas').innerHTML='<div class="item"><a href="'+href+'" target="_blank" rel="noopener"><img src="'+href+'" style="max-width:100%;height:auto;border:1px solid #333" alt="atlas tile"></a><div style="margin-top:4px"><a href="'+href+'" target="_blank" rel="noopener" style="color:#0096ff;text-decoration:none;font-size:11px">Open atlas in new tab</a></div><div style="color:#888;font-size:11px;margin-top:4px">'+esc(a.zoneId||'')+'</div></div>';
+}
+
+function renderGratefulPets(d){
+  var list=d.gratefulpets;
+  var panel=document.querySelector('[data-panel="gratefulpets"]');
+  var unavailable=list===null||list===undefined;
+  if(panel){
+    var changed=panel.classList.contains('unavailable')!==unavailable;
+    panel.classList.toggle('unavailable',unavailable);
+    if(changed&&typeof refreshCols==='function')refreshCols();
+  }
+  if(unavailable)return;
+  if(!list.length){$('gratefulpets').innerHTML=empty('No grateful pets tracked.');return;}
+  var h='';
+  list.forEach(function(gp){
+    h+='<div class="item"><div class="row"><span>'+qud(gp.name)+'</span><span>'+gp.corpseCount+'/5 corpses</span></div>';
+    h+='<div class="row"><span style="color:#888">held pellets</span><span>'+gp.held+'</span></div>';
+    h+='<div class="row"><span style="color:#888">digesting</span><span>'+gp.remaining+'</span></div>';
+    h+='<div class="row"><span style="color:#888">total corpses</span><span>'+gp.totalCorpses+'</span></div>';
+    if(gp.taste)h+='<div class="row"><span style="color:#00c420">taste for whole bodies</span><span>yes</span></div>';
+    h+='</div>';
+  });
+  $('gratefulpets').innerHTML=h;
+}
+
 function renderCombat(d){
   var c=d.combat||{},r=d.resist||{};
   function st(k,v,col,cls){return '<div><div class="k">'+k+'</div><div class="v'+(cls?' '+cls:'')+'"'+(col?' style="color:'+col+'"':'')+'>'+num(v)+'</div></div>';}
@@ -686,8 +721,8 @@ function renderSurvival(d){
 
 var lastPayload=null;
 var PARTS=[['Header',renderHead],['Pressing matters',renderWarn],['Effects',renderEffects],
-  ['Abilities',renderAbilities],['Hostiles',renderFoes],['Companions',renderCompanions],['Minimap',renderMinimap],['Nearby objects',renderNearby],['Messages',renderMessages],['Gear',renderGear],
-  ['Attributes',renderAttrs],['Combat',renderCombat],['Survival',renderSurvival]];
+  ['Abilities',renderAbilities],['Hostiles',renderFoes],['Companions',renderCompanions],['Minimap',renderMinimap],['Atlas',renderAtlas],['Nearby objects',renderNearby],['Messages',renderMessages],['Gear',renderGear],
+  ['Attributes',renderAttrs],['Grateful Pets',renderGratefulPets],['Combat',renderCombat],['Survival',renderSurvival]];
 // A panel a game update has broken would otherwise fail silently on every payload. Logging it
 // each time floods the console and holds every Error alive, so each distinct fault is reported
 // once and the footer names whatever is currently not drawing.
@@ -790,7 +825,7 @@ var zones=[].slice.call(document.querySelectorAll('.zone'));
 function panelsIn(z){return [].slice.call(z.children).filter(function(c){return c.classList.contains('panel');});}
 // Hidden panels keep their place in the saved layout, so they return where they were, but they
 // are invisible to anything that measures the page: column collapsing, drops and arrow moves.
-function shownIn(z){return panelsIn(z).filter(function(p){return !p.classList.contains('off');});}
+function shownIn(z){return panelsIn(z).filter(function(p){return !p.classList.contains('off')&&!p.classList.contains('unavailable');});}
 function snapshot(){var o={};zones.forEach(function(z){o[z.dataset.zone]=panelsIn(z).map(function(p){return p.dataset.panel;});});return o;}
 function apply(layout){
   if(!layout)return;
